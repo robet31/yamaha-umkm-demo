@@ -6,6 +6,7 @@ const useDemo = import.meta.env.VITE_USE_DEMO_DATA === 'true';
 
 // Lightweight in-memory demo data (kept in separate file for clarity)
 let demoStore: any = null;
+let demoAuthListeners: Array<(event: string, session: any) => void> = [];
 try {
   // dynamically import to avoid bundling in production builds
   if (useDemo) {
@@ -81,13 +82,66 @@ export function createClient(): SupabaseClient {
 
     // Basic auth shim
     const authShim = {
-      async signInWithPassword({ email }: { email: string }) {
+      async signInWithPassword({ email }: { email: string; password?: string }) {
         const user = demoStore.users.find((u: any) => u.email === email) || null;
-        return { data: { user }, error: user ? null : { message: 'User not found' } };
+
+        if (user) {
+          demoStore.currentUser = {
+            id: user.id,
+            email: user.email,
+            full_name: user.full_name,
+            user_metadata: {
+              full_name: user.full_name,
+              role: user.role,
+            },
+          };
+
+          const session = { user: demoStore.currentUser };
+          demoAuthListeners.forEach((listener) => listener('SIGNED_IN', session));
+          return { data: { user: demoStore.currentUser, session }, error: null };
+        }
+
+        return { data: { user: null, session: null }, error: { message: 'User not found' } };
       },
-      async signOut() { return { error: null }; },
-      async getUser() { return { data: { user: demoStore.currentUser ?? null }, error: null }; },
-      onAuthStateChange(_cb: any) { return { data: null }; }
+      async signUp({ email, options }: { email: string; options?: any }) {
+        const fullName = options?.data?.full_name || email.split('@')[0];
+        const role = options?.data?.role || 'customer';
+        const user = {
+          id: `u_${Date.now()}`,
+          email,
+          full_name: fullName,
+          role,
+          user_metadata: { full_name: fullName, role },
+        };
+        demoStore.users.push(user);
+        demoStore.currentUser = user;
+        const session = { user };
+        demoAuthListeners.forEach((listener) => listener('SIGNED_IN', session));
+        return { data: { user, session }, error: null };
+      },
+      async signOut() {
+        demoStore.currentUser = null;
+        demoAuthListeners.forEach((listener) => listener('SIGNED_OUT', null));
+        return { error: null };
+      },
+      async getUser() {
+        return { data: { user: demoStore.currentUser ?? null }, error: null };
+      },
+      async getSession() {
+        return { data: { session: demoStore.currentUser ? { user: demoStore.currentUser } : null }, error: null };
+      },
+      onAuthStateChange(cb: any) {
+        demoAuthListeners.push(cb);
+        return {
+          data: {
+            subscription: {
+              unsubscribe() {
+                demoAuthListeners = demoAuthListeners.filter((listener) => listener !== cb);
+              }
+            }
+          }
+        };
+      }
     };
 
     const demoClient: any = {
