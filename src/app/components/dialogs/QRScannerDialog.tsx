@@ -20,7 +20,7 @@ export function QRScannerDialog({ open, onOpenChange, onScanSuccess }: QRScanner
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const scanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Start camera when dialog opens
   useEffect(() => {

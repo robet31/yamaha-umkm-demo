@@ -58,7 +58,7 @@ import { JobDetailDialog } from './dialogs/JobDetailDialog';
 import { QRScannerDialog } from './dialogs/QRScannerDialog'; // Add QR Scanner
 import { AdvancedAnalytics } from './dashboard/AdvancedAnalytics';
 import { RealTimeJobOrdersTab } from './admin/RealTimeJobOrdersTab';
-import logoImage from 'figma:asset/02aef87afa090fdbcaef1cdcae0089d551235b8e.png';
+import logoImage from '../../assets/02aef87afa090fdbcaef1cdcae0089d551235b8e.png';
 import { useRealtimeJobOrders } from '../hooks/useRealtimeJobOrders';
 import { useDashboardStats } from '../hooks/useDashboardStats';
 import { createClient } from '../utils/supabase/client';
@@ -67,7 +67,7 @@ import InventoryForm from '../pages/admin/inventory-form';
 import TechnicianForm from '../pages/admin/technician-form';
 import AssignTechnician from '../pages/admin/assign-technician';
 import JobDetail from '../pages/admin/job-detail';
-import { populateInventory, populateTechnicians } from '../utils/populate-data';
+import { DUMMY_INVENTORY, DUMMY_TECHNICIANS, populateInventory, populateTechnicians } from '../utils/populate-data';
 
 interface Technician {
   id: string;
@@ -119,6 +119,7 @@ const serviceDistribution = [
 ];
 
 export function AdminDashboardNew({ onNavigate }: { onNavigate?: (view: string) => void }) {
+  const useDemo = import.meta.env.VITE_USE_DEMO_DATA !== 'false';
   const { user, profile, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   
@@ -193,18 +194,42 @@ export function AdminDashboardNew({ onNavigate }: { onNavigate?: (view: string) 
   };
 
   const initializeInventoryData = async () => {
-    const data = await populateInventory();
-    setInventory(data);
-    toast.success('Inventory data populated!');
+    const result = await populateInventory();
+    if (result.success) {
+      await loadInventory();
+      toast.success(result.message || 'Inventory data populated!');
+      return;
+    }
+    toast.error(result.message || 'Gagal populate inventory');
   };
 
   const initializeTechnicianData = async () => {
-    const data = await populateTechnicians();
-    setTechnicians(data);
-    toast.success('Technician data populated!');
+    const result = await populateTechnicians();
+    if (result.success) {
+      await loadTechnicians();
+      toast.success(result.message || 'Technician data populated!');
+      return;
+    }
+    toast.error(result.message || 'Gagal populate technician');
   };
 
   const loadInventory = async () => {
+    if (useDemo) {
+      const demoItems: InventoryItem[] = DUMMY_INVENTORY.map((item, index) => ({
+        id: `demo_inventory_${index + 1}`,
+        sku: item.sku,
+        name: item.name,
+        category: item.category,
+        stock: item.stock,
+        minStock: item.minStock,
+        price: item.price,
+        supplier: item.supplier,
+        lowStock: item.stock <= item.minStock,
+      }));
+      setInventory(demoItems);
+      return;
+    }
+
     try {
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-c1ef5280/kv/prefix/inventory_`,
@@ -227,6 +252,21 @@ export function AdminDashboardNew({ onNavigate }: { onNavigate?: (view: string) 
   };
 
   const loadTechnicians = async () => {
+    if (useDemo) {
+      const demoTechs: Technician[] = DUMMY_TECHNICIANS.map((tech) => ({
+        id: tech.id,
+        name: tech.name,
+        phone: tech.phone,
+        specialization: tech.specialization,
+        status: 'available',
+        activeJobs: tech.activeJobs,
+        completedJobs: tech.completedJobs,
+        rating: tech.rating,
+      }));
+      setTechnicians(demoTechs);
+      return;
+    }
+
     try {
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-c1ef5280/kv/prefix/technician_`,
@@ -390,6 +430,10 @@ export function AdminDashboardNew({ onNavigate }: { onNavigate?: (view: string) 
     return (
       <AssignTechnician
         onBack={() => setShowAssignTechnician(false)}
+        onSuccess={() => {
+          setShowAssignTechnician(false);
+          loadTechnicians();
+        }}
         job={selectedJob}
         technicians={technicians}
       />
@@ -782,11 +826,11 @@ export function AdminDashboardNew({ onNavigate }: { onNavigate?: (view: string) 
                           { name: 'Cancelled', value: 5, color: '#ef4444', count: 2 }
                         ];
 
-                        const statusData = stats.jobStatusDistribution && stats.jobStatusDistribution.length > 0
+                        const statusData: Array<{ name: string; value: number; color: string; count?: number }> = stats.jobStatusDistribution && stats.jobStatusDistribution.length > 0
                           ? stats.jobStatusDistribution
                           : dummyStatusData;
 
-                        const totalOrders = statusData.reduce((sum, item) => sum + (item.count || item.value), 0);
+                        const totalOrders = statusData.reduce((sum: number, item: { value: number; count?: number }) => sum + (item.count || item.value), 0);
 
                         return (
                           <div className="space-y-4">
@@ -804,7 +848,7 @@ export function AdminDashboardNew({ onNavigate }: { onNavigate?: (view: string) 
                                   dataKey="value"
                                   animationDuration={1000}
                                 >
-                                  {statusData.map((entry, index) => (
+                                  {statusData.map((entry: { color: string }, index: number) => (
                                     <Cell key={`cell-${index}`} fill={entry.color} />
                                   ))}
                                 </Pie>
@@ -823,7 +867,7 @@ export function AdminDashboardNew({ onNavigate }: { onNavigate?: (view: string) 
 
                             {/* Status Legend with Stats */}
                             <div className="space-y-2 pt-2 border-t border-gray-100">
-                              {statusData.map((item, index) => (
+                              {statusData.map((item: { name: string; color: string; value: number; count?: number }, index: number) => (
                                 <div key={index} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors">
                                   <div className="flex items-center gap-3">
                                     <div 

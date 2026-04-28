@@ -64,7 +64,7 @@ import { SettingsDialog } from './dialogs/SettingsDialog';
 import { JobDetailDialog } from './dialogs/JobDetailDialog';
 import { AdvancedAnalytics } from './dashboard/AdvancedAnalytics';
 import { RealTimeJobOrdersTab } from './admin/RealTimeJobOrdersTab';
-import logoImage from 'figma:asset/02aef87afa090fdbcaef1cdcae0089d551235b8e.png';
+import logoImage from '../../assets/02aef87afa090fdbcaef1cdcae0089d551235b8e.png';
 import { useRealtimeJobOrders } from '../hooks/useRealtimeJobOrders';
 import { createClient } from '../utils/supabase/client';
 import CreateJobPage from '../pages/admin/create-job';
@@ -286,8 +286,8 @@ export function AdminDashboard({ onNavigate }: { onNavigate: (view: string) => v
   
   // Settings Tab States
   const [accountForm, setAccountForm] = useState({
-    name: profile?.name || 'Admin User',
-    email: profile?.email || 'admin@sunest.com',
+    name: profile?.full_name || 'Admin User',
+    email: 'admin@sunest.com',
     phone: profile?.phone || '081234567890'
   });
   

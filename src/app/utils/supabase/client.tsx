@@ -2,8 +2,11 @@ import { createClient as createSupabaseClient, SupabaseClient } from '@supabase/
 import { projectId, publicAnonKey } from './info';
 import demoStore from '../../demo/demoData';
 
-// Demo-mode support: if `VITE_USE_DEMO_DATA` is true, return an in-memory shim
-const useDemo = import.meta.env.VITE_USE_DEMO_DATA === 'true';
+// Demo-mode support: FORCE demo mode on in production (Vercel deploy)
+// In dev, can set VITE_USE_DEMO_DATA=false to test real Supabase
+const useDemo = typeof window !== 'undefined' && window.location.hostname === 'yamaha-umkm-demo.vercel.app' 
+  ? true 
+  : import.meta.env.VITE_USE_DEMO_DATA !== 'false';
 
 let demoAuthListeners: Array<(event: string, session: any) => void> = [];
 

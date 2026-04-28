@@ -11,6 +11,7 @@ interface DashboardStats {
   revenueData: Array<{ month: string; revenue: number }>;
   weeklyRevenueData: Array<{ week: string; revenue: number }>; // ✅ NEW: Weekly revenue
   serviceDistribution: Array<{ name: string; value: number; color: string }>;
+  jobStatusDistribution: Array<{ name: string; value: number; color: string; count: number }>;
   topSpareparts: Array<{ name: string; count: number; revenue: number }>; // ✅ NEW: Top spareparts
 }
 
@@ -24,6 +25,7 @@ export function useDashboardStats() {
     revenueData: [],
     weeklyRevenueData: [], // ✅ NEW: Weekly revenue
     serviceDistribution: [],
+    jobStatusDistribution: [],
     topSpareparts: [] // ✅ NEW: Top spareparts
   });
   const [loading, setLoading] = useState(true);
@@ -172,6 +174,24 @@ export function useDashboardStats() {
         color: packageColors[name] || '#6b7280' // gray fallback
       }));
 
+      const statusCount = {
+        completed: jobs?.filter((job: any) => job.status === 'completed').length || 0,
+        inProgress: jobs?.filter((job: any) => job.status === 'in_progress').length || 0,
+        pending: jobs?.filter((job: any) => job.status === 'pending').length || 0,
+        cancelled: jobs?.filter((job: any) => job.status === 'cancelled').length || 0,
+      };
+
+      const statusTotal = Math.max(1, statusCount.completed + statusCount.inProgress + statusCount.pending + statusCount.cancelled);
+      const jobStatusDistribution = [
+        { name: 'Completed', count: statusCount.completed, color: '#10b981' },
+        { name: 'In Progress', count: statusCount.inProgress, color: '#3b82f6' },
+        { name: 'Pending', count: statusCount.pending, color: '#f59e0b' },
+        { name: 'Cancelled', count: statusCount.cancelled, color: '#ef4444' },
+      ].map((entry) => ({
+        ...entry,
+        value: Math.round((entry.count / statusTotal) * 100),
+      }));
+
       // ✅ 6. Fetch Reviews (if table exists, otherwise use dummy data)
       let totalReviews = 0;
       let avgRating = 0;
@@ -250,6 +270,7 @@ export function useDashboardStats() {
         revenueData,
         weeklyRevenueData: weeklyRevenueWithFallback, // ✅ NEW: Weekly revenue
         serviceDistribution,
+        jobStatusDistribution,
         topSpareparts // ✅ NEW: Top spareparts
       });
 

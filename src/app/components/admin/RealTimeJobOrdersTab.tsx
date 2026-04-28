@@ -263,8 +263,8 @@ export function RealTimeJobOrdersTab({
                   {jobs.filter(j => j.status === 'pending').map((job) => {
                     // Extract all info once for reuse
                     const customerName = (() => {
-                      if (job.users?.full_name) return job.users.full_name;
-                      if (job.users?.email) return job.users.email;
+                      if (job.customer_name) return job.customer_name;
+                      if (job.user_id) return job.user_id;
                       const match = job.notes?.match(/👤 Customer: ([^\n]+)/);
                       return match ? match[1].trim() : 'Walk-in Customer';
                     })();
