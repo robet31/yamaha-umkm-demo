@@ -306,7 +306,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const supabase = getSupabaseClient();
       
       console.log('🔐 Attempting sign in for:', email);
-      console.log('🔗 Supabase URL:', supabaseUrl);
+      console.log('🔗 Supabase URL:', supabaseUrl || 'Demo Mode Active');
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,

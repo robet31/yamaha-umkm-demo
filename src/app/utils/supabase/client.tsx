@@ -2,11 +2,10 @@ import { createClient as createSupabaseClient, SupabaseClient } from '@supabase/
 import { projectId, publicAnonKey } from './info';
 import demoStore from '../../demo/demoData';
 
-// Demo-mode support: FORCE demo mode on in production (Vercel deploy)
-// In dev, can set VITE_USE_DEMO_DATA=false to test real Supabase
-const useDemo = typeof window !== 'undefined' && window.location.hostname === 'yamaha-umkm-demo.vercel.app' 
-  ? true 
-  : import.meta.env.VITE_USE_DEMO_DATA !== 'false';
+// Demo-mode support: use Vite's import.meta.env.PROD flag (reliable)
+// PROD = true in production build (npm run build)
+// PROD = false in dev (npm run dev)
+const useDemo = import.meta.env.PROD || import.meta.env.VITE_USE_DEMO_DATA !== 'false';
 
 let demoAuthListeners: Array<(event: string, session: any) => void> = [];
 
@@ -14,8 +13,8 @@ let demoAuthListeners: Array<(event: string, session: any) => void> = [];
 let supabaseInstance: SupabaseClient | null = null;
 let initializationPromise: Promise<SupabaseClient> | null = null;
 
-// Store the URL for debugging
-export const supabaseUrl = `https://${projectId}.supabase.co`;
+// Store the URL for debugging (without https:// prefix since projectId is just the ID)
+export const supabaseUrl = projectId ? `https://${projectId}.supabase.co` : '';
 
 export function createClient(): SupabaseClient {
   // If demo mode requested, return a shim implementing a tiny subset of Supabase API
