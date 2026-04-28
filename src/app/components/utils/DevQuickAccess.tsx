@@ -19,6 +19,7 @@ interface DevQuickAccessProps {
 
 export function DevQuickAccess({ onLoginAsAdmin, onLoginAsCustomer, onTestConnection, isLoading = false }: DevQuickAccessProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const isDemoMode = import.meta.env.VITE_USE_DEMO_DATA === 'true';
 
   // Always show the button (remove isDev check for now to ensure it appears)
   console.log('🔧 DevQuickAccess rendered');
@@ -117,7 +118,7 @@ export function DevQuickAccess({ onLoginAsAdmin, onLoginAsCustomer, onTestConnec
             </Card>
 
             {/* Test Connection */}
-            {onTestConnection && (
+            {!isDemoMode && onTestConnection && (
               <Card className="border-2 border-gray-200 hover:border-gray-400 transition-all duration-300 hover:shadow-lg cursor-pointer group">
                 <CardContent className="p-0">
                   <Button

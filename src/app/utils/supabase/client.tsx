@@ -1,21 +1,11 @@
 import { createClient as createSupabaseClient, SupabaseClient } from '@supabase/supabase-js';
 import { projectId, publicAnonKey } from './info';
+import demoStore from '../../demo/demoData';
 
 // Demo-mode support: if `VITE_USE_DEMO_DATA` is true, return an in-memory shim
 const useDemo = import.meta.env.VITE_USE_DEMO_DATA === 'true';
 
-// Lightweight in-memory demo data (kept in separate file for clarity)
-let demoStore: any = null;
 let demoAuthListeners: Array<(event: string, session: any) => void> = [];
-try {
-  // dynamically import to avoid bundling in production builds
-  if (useDemo) {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    demoStore = require('../../demo/demoData').demoStore;
-  }
-} catch (e) {
-  // ignore
-}
 
 // True singleton instance
 let supabaseInstance: SupabaseClient | null = null;
@@ -31,12 +21,39 @@ export function createClient(): SupabaseClient {
 
     console.log('🔧 Creating Demo Supabase client (in-memory)');
 
-    // Minimal chainable query builder for `from(table).select(...).maybeSingle()` etc.
+    // Minimal chainable query builder for `from(table).select(...).single()` etc.
     const makeQuery = (table: string) => {
-      let _rows = demoStore[table] || [];
+      let _rows = Array.isArray(demoStore[table]) ? [...demoStore[table]] : [];
+      let _singleRow: any = null;
+      let _mode: 'select' | 'insert' | 'update' | 'delete' = 'select';
+
+      const resolveMany = () => {
+        if (_mode === 'delete') return { data: [], error: null };
+        if (_mode === 'insert') return { data: _singleRow ? [_singleRow] : _rows, error: null };
+        return { data: _rows, error: null };
+      };
+
+      const resolveSingle = () => ({
+        data: _singleRow ?? _rows[0] ?? null,
+        error: _singleRow || _rows[0] ? null : { message: 'No rows found' },
+      });
+
       const builder: any = {
+        then(onFulfilled: any, onRejected: any) {
+          return Promise.resolve(resolveMany()).then(onFulfilled, onRejected);
+        },
+        catch(onRejected: any) {
+          return Promise.resolve(resolveMany()).catch(onRejected);
+        },
+        finally(onFinally: any) {
+          return Promise.resolve(resolveMany()).finally(onFinally);
+        },
         select(_cols?: string) {
-          return Promise.resolve({ data: _rows, error: null });
+          _mode = 'select';
+          return builder;
+        },
+        single() {
+          return Promise.resolve(resolveSingle());
         },
         maybeSingle() {
           return Promise.resolve({ data: _rows[0] ?? null, error: null });
@@ -57,24 +74,29 @@ export function createClient(): SupabaseClient {
         order() { return builder; },
         limit() { return builder; },
         insert(rows: any | any[]) {
+          _mode = 'insert';
           const arr = Array.isArray(rows) ? rows : [rows];
           arr.forEach((row: any) => {
-            // assign basic id if missing
-            if (!row.id) row.id = (Math.max(0, ...(_rows.map((x: any) => x.id || 0))) + 1);
+            if (!row.id) row.id = `demo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
             _rows.push(row);
+            _singleRow = row;
           });
           demoStore[table] = _rows;
-          return Promise.resolve({ data: arr, error: null });
+          return builder;
         },
         update(values: any) {
+          _mode = 'update';
           _rows = (_rows || []).map((r: any) => ({ ...r, ...values }));
+          _singleRow = _rows[0] ?? null;
           demoStore[table] = _rows;
-          return Promise.resolve({ data: _rows, error: null });
+          return builder;
         },
         delete() {
+          _mode = 'delete';
           demoStore[table] = [];
           _rows = [];
-          return Promise.resolve({ data: [], error: null });
+          _singleRow = null;
+          return builder;
         }
       };
       return builder;
@@ -83,6 +105,10 @@ export function createClient(): SupabaseClient {
     // Basic auth shim
     const authShim = {
       async signInWithPassword({ email }: { email: string; password?: string }) {
+        if (!demoStore?.users) {
+          return { data: { user: null, session: null }, error: { message: 'Demo store is not available' } };
+        }
+
         const user = demoStore.users.find((u: any) => u.email === email) || null;
 
         if (user) {
@@ -104,6 +130,10 @@ export function createClient(): SupabaseClient {
         return { data: { user: null, session: null }, error: { message: 'User not found' } };
       },
       async signUp({ email, options }: { email: string; options?: any }) {
+        if (!demoStore?.users) {
+          return { data: { user: null, session: null }, error: { message: 'Demo store is not available' } };
+        }
+
         const fullName = options?.data?.full_name || email.split('@')[0];
         const role = options?.data?.role || 'customer';
         const user = {
