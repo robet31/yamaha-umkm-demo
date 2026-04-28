@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '../utils/supabase/client';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export interface JobOrder {
   id: string;
